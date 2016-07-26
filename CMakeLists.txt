@@ -20,7 +20,7 @@ cmake_minimum_required( VERSION 2.6 )
 project( lldb-mi )
 
 set( PACKAGE "libcommon" )
-set( PACKAGE_VERSION "0.1")
+set( PACKAGE_VERSION "0.2")
 
 set( CMAKE_CXX_STANDARD "11")
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
