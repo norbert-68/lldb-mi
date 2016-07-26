@@ -51,6 +51,9 @@
 		<configuration configurationName="Default">
 			<resource resourceType="PROJECT" workspacePath="/lldb-mi"/>
 		</configuration>
+		<configuration configurationName="Debug">
+			<resource resourceType="PROJECT" workspacePath="/lldb-mi"/>
+		</configuration>
 	</storageModule>
 	<storageModule moduleId="scannerConfiguration">
 		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
