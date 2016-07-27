@@ -1,4 +1,5 @@
 //******************************************************************************
+//
 // Copyright 2016 by Norbert Klose (norbert.klose@web.de)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,16 +16,26 @@
 //
 //******************************************************************************
 
-#include <LldbMi.hpp>
+#include <lldbmi/Interpreter.hpp>
+#include "Command.hpp"
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <cstring>
 
-namespace lldbmi
-{
+namespace lldbmi {
 
-std::string LldbMiInterpreter::getTime()
+const char * Interpreter::endl = "\r\n";
+
+void Interpreter::execute(Command & command)
+{
+    if (command.operation.compare("-list-features") == 0)
+    {
+
+    }
+}
+
+std::string Interpreter::getTime()
 {
     time_t t = time(0);
     char timstr[52];
@@ -34,7 +45,7 @@ std::string LldbMiInterpreter::getTime()
     return std::string(timstr);
 }
 
-int LldbMiInterpreter::parseOptions(const char * option, int argc, char * args[], std::string * value)
+int Interpreter::parseOptions(const char * option, int argc, char * args[], std::string * value)
 {
     int modifiedArgc = argc;
     int optionLength = strlen(option);
@@ -75,11 +86,30 @@ int LldbMiInterpreter::parseOptions(const char * option, int argc, char * args[]
     return modifiedArgc;
 }
 
-void LldbMiInterpreter::start(int argc, char * args[])
+void Interpreter::readEvalLoop()
 {
-    outStream = &std::cout;
-    if (logStream)
-        logStream.reset();
+    while (true)
+    {
+        writeOutput(outOfBandRecords);
+        outOfBandRecords.clear();
+        std::string commandLine;
+        std::getline(getIn(), commandLine);
+        if (hasLog())
+            getLog() << __FUNCTION__ << " " << commandLine << std::endl;
+        Command command;
+        command.parse(commandLine);
+        if (hasLog())
+            getLog() << __FUNCTION__ << " " << command << std::endl;
+        execute(command);
+    }
+}
+
+void Interpreter::start(int argc, char * args[], std::istream & in, std::ostream & out)
+{
+    this->in = &in;
+    this->out = &out;
+    if (log)
+        log.reset();
     if (!logFilename.empty())
         logFilename.clear();
 
@@ -87,8 +117,8 @@ void LldbMiInterpreter::start(int argc, char * args[])
 
     if (!logFilename.empty())
     {
-        logStream.reset(new std::fstream(logFilename.c_str(), std::ios::out|std::ios::app));
-        if (!*logStream)
+        log.reset(new std::fstream(logFilename.c_str(), std::ios::out|std::ios::app));
+        if (!*log)
         {
             std::ostringstream strstr;
             strstr << "can not open logfile '" << logFilename << "'";
@@ -113,15 +143,36 @@ void LldbMiInterpreter::start(int argc, char * args[])
 
     modifiedArgc = parseOptions("--interpreter", modifiedArgc, args, &interpreter);
     if (hasLog())
-        getLog() << "Selected interpreter: " << interpreter << std::endl;
+        getLog() << __FUNCTION__ << " selected interpreter: " << interpreter << std::endl;
 
     int nxArgc = parseOptions("--nx", modifiedArgc, args);
     if (nxArgc != modifiedArgc)
     {
         modifiedArgc = nxArgc;
         if (hasLog())
-            getLog() << "Do not execute commands from any initialization files" << std::endl;
+            getLog() << __FUNCTION__ << " do not read any initialization files" << std::endl;
     }
+
+    readEvalLoop();
+}
+
+void Interpreter::writeOutput(const std::vector<std::string> & outOfBandRecords, const std::string * resultRecord)
+{
+    for (const std::string & outOfBandRecord : outOfBandRecords)
+    {
+        getOut() << outOfBandRecord << endl;
+        if (hasLog())
+            getLog() << __FUNCTION__ << " " << outOfBandRecord << std::endl;
+    }
+    if (resultRecord)
+    {
+        getOut() << resultRecord << endl;
+        if (hasLog())
+            getLog() << __FUNCTION__ << " " << resultRecord << std::endl;
+    }
+    getOut() << "(gdb)" << endl;
+    if (hasLog())
+        getLog() << __FUNCTION__ << " (gdb)" << std::endl;
 }
 
 } // namespace lldbmi

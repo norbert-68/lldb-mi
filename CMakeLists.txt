@@ -13,6 +13,7 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+#
 ################################################################################
 
 cmake_minimum_required( VERSION 2.6 )
@@ -50,7 +51,8 @@ include_directories(
 )
 
 add_library( lldb-mi-interpreter
-    src/LldbMi.cpp
+    src/Command.cpp
+    src/Interpreter.cpp
 )
 
 target_link_libraries( lldb-mi-interpreter ${LLDB_LIBRARY} )

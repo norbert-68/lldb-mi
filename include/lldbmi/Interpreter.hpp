@@ -1,4 +1,5 @@
 //******************************************************************************
+//
 // Copyright 2016 by Norbert Klose (norbert.klose@web.de)
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +15,8 @@
 // limitations under the License.
 //
 //******************************************************************************
-#ifndef LLDB_MI_HPP
-#define LLDB_MI_HPP
+#ifndef LLDBMI_INTERPRETER_HPP
+#define LLDBMI_INTERPRETER_HPP
 
 #include <lldb/API/SBDebugger.h>
 #include <memory>
@@ -23,36 +24,54 @@
 
 namespace lldbmi {
 
-class LldbMiInterpreter
+// forward declarations
+struct Command;
+
+class Interpreter
 {
 public:
 
-	LldbMiInterpreter() :
-	    outStream(0),
+    static const char * endl;
+
+	Interpreter() :
+        in(0),
+	    out(0),
 		modifiedArgc(0)
 	{
 	}
 
-	std::ostream & getLog() { return *logStream; }
-    std::ostream & getOut() { return *outStream; }
+    std::istream & getIn()  { return *in; }
+	std::ostream & getLog() { return *log; }
+    std::ostream & getOut() { return *out; }
+
     static std::string getTime();
 
-	bool hasLog() const     { return static_cast<bool>(logStream); }
+	bool hasLog() const { return static_cast<bool>(log); }
 
 	static int parseOptions(const char * option, int argc, char * args[], std::string * value = 0);
 
-	void start(int argc, char * args[]);
+
+	void start(int argc, char * args[], std::istream & in, std::ostream & out);
+
+	void writeOutput(const std::vector<std::string> & outOfBandRecords, const std::string * resultRecord = 0);
+
+protected:
+
+	void execute(Command & command);
+	void readEvalLoop();
 
 private:
 
-	std::ostream * outStream;
-	std::unique_ptr<std::ostream> logStream;
+    std::istream * in;
+	std::ostream * out;
+	std::unique_ptr<std::ostream> log;
 	std::string logFilename;
 	int modifiedArgc;
 	std::string interpreter;
+    std::vector<std::string> outOfBandRecords;
 
 };
 
 } // lldbmi
 
-#endif // LLDB_MI_HPP
+#endif // LLDBMI_INTERPRETER_HPP

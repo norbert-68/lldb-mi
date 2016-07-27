@@ -15,37 +15,33 @@
 // limitations under the License.
 //
 //******************************************************************************
+#ifndef LLDBMI_COMMAND_HPP
+#define LLDBMI_COMMAND_HPP
 
-#include <lldbmi/Interpreter.hpp>
-#include <iostream>
-#include <cstdlib>
+#include <string>
+#include <vector>
 
-int main(int argc, char * args[])
+namespace lldbmi {
+
+struct Option
 {
-	try
-	{
-		lldbmi::Interpreter miInterpreter;
-		miInterpreter.start(argc, args, std::cin, std::cout);
-	}
-	catch (const std::exception & exception)
-	{
-		std::cerr << "error: " << exception.what() << std::endl;
-		return EXIT_FAILURE;
-	}
-	catch (const char * exception)
-	{
-		std::cerr << "error: " << exception << std::endl;
-		return EXIT_FAILURE;
-	}
-	catch (int exception)
-	{
-		std::cerr << "error: " << exception << std::endl;
-		return EXIT_FAILURE;
-	}
-	catch (...)
-	{
-		std::cerr << "unknown error" << std::endl;
-		return EXIT_FAILURE;
-	}
-	return EXIT_SUCCESS;
-}
+    std::string name;
+    std::string parameter;
+};
+
+struct Command
+{
+    void parse(const std::string & commandLine);
+
+    std::string token;
+    std::string operation;
+    std::vector<Option> options;
+    std::vector<std::string> parameters;
+};
+
+} // namespce lldbmi
+
+std::ostream & operator<<(std::ostream & out, const lldbmi::Option & option);
+std::ostream & operator<<(std::ostream & out, const lldbmi::Command & command);
+
+#endif // LLDBMI_COMMAND_HPP
