@@ -18,8 +18,40 @@
 #define LLDB_MI_HPP
 
 #include <lldb/API/SBDebugger.h>
+#include <memory>
+#include <ostream>
 
 namespace lldbmi {
+
+class LldbMiInterpreter
+{
+public:
+
+	LldbMiInterpreter() :
+	    outStream(0),
+		modifiedArgc(0)
+	{
+	}
+
+	std::ostream & getLog() { return *logStream; }
+    std::ostream & getOut() { return *outStream; }
+    static std::string getTime();
+
+	bool hasLog() const     { return static_cast<bool>(logStream); }
+
+	static int parseOptions(const char * option, int argc, char * args[], std::string * value = 0);
+
+	void start(int argc, char * args[]);
+
+private:
+
+	std::ostream * outStream;
+	std::unique_ptr<std::ostream> logStream;
+	std::string logFilename;
+	int modifiedArgc;
+	std::string interpreter;
+
+};
 
 } // lldbmi
 

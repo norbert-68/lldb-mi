@@ -23,26 +23,27 @@ int main(int argc, char * args[])
 {
 	try
 	{
-
+		lldbmi::LldbMiInterpreter miInterpreter;
+		miInterpreter.start(argc, args);
 	}
 	catch (const std::exception & exception)
 	{
-		std::cerr << "Error: " << exception.what() << std::endl;
+		std::cerr << "error: " << exception.what() << std::endl;
 		return EXIT_FAILURE;
 	}
 	catch (const char * exception)
 	{
-		std::cerr << "Error: " << exception << std::endl;
+		std::cerr << "error: " << exception << std::endl;
 		return EXIT_FAILURE;
 	}
 	catch (int exception)
 	{
-		std::cerr << "Error: " << exception << std::endl;
+		std::cerr << "error: " << exception << std::endl;
 		return EXIT_FAILURE;
 	}
 	catch (...)
 	{
-		std::cerr << "Unknown error" << std::endl;
+		std::cerr << "unknown error" << std::endl;
 		return EXIT_FAILURE;
 	}
 	return EXIT_SUCCESS;
