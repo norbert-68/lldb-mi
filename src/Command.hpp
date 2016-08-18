@@ -23,24 +23,86 @@
 
 namespace lldbmi {
 
+// Forward Declaration
+class Interpreter;
+
+struct Result
+{
+    Result(const char * variabe = "result") :
+        variabe(variabe) {}
+
+    std::string variabe;
+    std::string value;
+};
+
+struct ResultVector : public std::vector<std::string>
+{
+public:
+
+    ResultVector(char open, char close) : open(open), close(close) {}
+
+    std::string toString() const;
+
+protected:
+
+    char open;
+    char close;
+};
+
+struct ResultList : public ResultVector
+{
+    ResultList() : ResultVector('[', ']') {}
+};
+
+struct ResultTuple : public ResultVector
+{
+    ResultTuple() : ResultVector('{', '}') {}
+};
+
+struct ResultClass
+{
+    ResultClass() :
+        value(DONE) {}
+
+    enum { DONE, CONNECTED, ERROR, EXIT } value;
+};
+
 struct Option
 {
     std::string name;
     std::string parameter;
 };
 
-struct Command
+class Command
 {
+public:
+
+    Command(Interpreter & interpreter) :
+        interpreter(interpreter) {}
+
+    virtual ~Command() {}
+
+    virtual void execute();
+
     void parse(const std::string & commandLine);
 
+protected:
+
+    void writeOutput();
+
+    Interpreter & interpreter;
     std::string token;
     std::string operation;
+    ResultClass resultClass;
     std::vector<Option> options;
     std::vector<std::string> parameters;
+    std::vector<Result> results;
 };
 
 } // namespce lldbmi
 
+std::ostream & operator<<(std::ostream & out, const lldbmi::Result & result);
+std::ostream & operator<<(std::ostream & out, const lldbmi::ResultClass & resultClass);
 std::ostream & operator<<(std::ostream & out, const lldbmi::Option & option);
 std::ostream & operator<<(std::ostream & out, const lldbmi::Command & command);
 

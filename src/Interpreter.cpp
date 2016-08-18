@@ -22,17 +22,15 @@
 #include <iostream>
 #include <sstream>
 #include <cstring>
+#include "commands/GdbVersion.hpp"
 
 namespace lldbmi {
 
 const char * Interpreter::endl = "\r\n";
 
-void Interpreter::execute(Command & command)
+void Interpreter::addOutOfBandRecord(const std::string & record)
 {
-    if (command.operation.compare("-list-features") == 0)
-    {
-
-    }
+    outOfBandRecords.push_back(record);
 }
 
 std::string Interpreter::getTime()
@@ -88,19 +86,16 @@ int Interpreter::parseOptions(const char * option, int argc, char * args[], std:
 
 void Interpreter::readEvalLoop()
 {
+    writeOutput();
     while (true)
     {
-        writeOutput(outOfBandRecords);
-        outOfBandRecords.clear();
         std::string commandLine;
         std::getline(getIn(), commandLine);
         if (hasLog())
-            getLog() << __FUNCTION__ << " " << commandLine << std::endl;
-        Command command;
+            getLog() << __FUNCTION__ << " getline: " << commandLine << std::endl;
+        Command command(*this);
         command.parse(commandLine);
-        if (hasLog())
-            getLog() << __FUNCTION__ << " " << command << std::endl;
-        execute(command);
+        command.execute();
     }
 }
 
@@ -130,14 +125,14 @@ void Interpreter::start(int argc, char * args[], std::istream & in, std::ostream
     {
         getLog() << getTime() << " LLDB-MI started." << std::endl;
         for (int i = 0; i < argc; ++i)
-            getLog() << __FUNCTION__ << " args[" << i << "]='" << args[i] << "'" << std::endl;
+            getLog() << __FUNCTION__ << " args[" << i << "] " << args[i] << std::endl;
     }
 
     if (parseOptions("--version", modifiedArgc, args) != modifiedArgc)
     {
-        getOut() << "GNU gdb (GDB) 7.6"                     << std::endl
-                 << "A MI command line interface for LLDB." << std::endl
-                 << "All rights reserved."                  << std::endl;
+        GdbVersion gdbVersion(*this);
+        for (const std::string & version : gdbVersion.getVersion())
+            getOut() << version << std::endl;
         return;
     }
 
@@ -156,23 +151,29 @@ void Interpreter::start(int argc, char * args[], std::istream & in, std::ostream
     readEvalLoop();
 }
 
-void Interpreter::writeOutput(const std::vector<std::string> & outOfBandRecords, const std::string * resultRecord)
+void Interpreter::writeOutput(const std::string & resultRecord)
+{
+    std::ostringstream strstr;
+    writeOutput(strstr, resultRecord);
+    std::string str = strstr.str();
+    if (hasLog())
+        getLog() << __FUNCTION__ << " " << str;
+    getOut() << str;
+    getOut().flush();
+}
+
+void Interpreter::writeOutput(std::ostream & stream, const std::string & resultRecord)
 {
     for (const std::string & outOfBandRecord : outOfBandRecords)
     {
-        getOut() << outOfBandRecord << endl;
-        if (hasLog())
-            getLog() << __FUNCTION__ << " " << outOfBandRecord << std::endl;
+        stream << outOfBandRecord << endl;
     }
-    if (resultRecord)
+    outOfBandRecords.clear();
+    if (!resultRecord.empty())
     {
-        getOut() << resultRecord << endl;
-        if (hasLog())
-            getLog() << __FUNCTION__ << " " << resultRecord << std::endl;
+        stream << resultRecord << endl;
     }
-    getOut() << "(gdb)" << endl;
-    if (hasLog())
-        getLog() << __FUNCTION__ << " (gdb)" << std::endl;
+    stream << "(gdb)" << endl;
 }
 
 } // namespace lldbmi

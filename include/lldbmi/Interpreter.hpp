@@ -40,6 +40,8 @@ public:
 	{
 	}
 
+    void addOutOfBandRecord(const std::string & record);
+
     std::istream & getIn()  { return *in; }
 	std::ostream & getLog() { return *log; }
     std::ostream & getOut() { return *out; }
@@ -53,12 +55,12 @@ public:
 
 	void start(int argc, char * args[], std::istream & in, std::ostream & out);
 
-	void writeOutput(const std::vector<std::string> & outOfBandRecords, const std::string * resultRecord = 0);
+    void writeOutput(const std::string & resultRecord = std::string());
 
 protected:
 
-	void execute(Command & command);
 	void readEvalLoop();
+    void writeOutput(std::ostream & stream, const std::string & resultRecord);
 
 private:
 

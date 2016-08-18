@@ -19,8 +19,45 @@
 #include "Command.hpp"
 #include <lldbmi/Interpreter.hpp>
 #include <cctype>
+#include <sstream>
+#include "commands/ListFeatures.hpp"
+#include "commands/GdbVersion.hpp"
 
 namespace lldbmi {
+
+std::string ResultVector::toString() const
+{
+    std::ostringstream strstr;
+    strstr << open;
+    if (!empty())
+    {
+        std::vector<std::string>::const_iterator itr = begin();
+        strstr << *(itr++);
+        for (; itr != end(); ++itr)
+        {
+            strstr << "," << *itr;
+        }
+
+    }
+    strstr << close;
+    return strstr.str();
+}
+
+void Command::execute()
+{
+    if (interpreter.hasLog())
+        interpreter.getLog() << __FUNCTION__ << " " << operation << std::endl;
+    if (operation.compare("-list-features") == 0)
+    {
+        ListFeatures command(*this);
+        command.execute();
+    }
+    else if (operation.compare("-gdb-version") == 0)
+    {
+        GdbVersion command(*this);
+        command.execute();
+    }
+}
 
 void Command::parse(const std::string & commandLine)
 {
@@ -34,10 +71,44 @@ void Command::parse(const std::string & commandLine)
     {
         while (i < commandLine.length() &&  commandLine.at(i) != ' ')
             operation.append(1, commandLine.at(i++));
+        if (interpreter.hasLog())
+            interpreter.getLog() << __FUNCTION__ << " operation=" << operation << std::endl;
     }
 }
 
+void Command::writeOutput()
+{
+    std::ostringstream strstr;
+    if (!token.empty())
+        strstr << token;
+    strstr << "^" << resultClass;
+    for (const Result & result : results)
+        strstr << "," << result;
+    interpreter.writeOutput(strstr.str());
+}
+
 } // namespace lldbmi
+
+std::ostream & operator<<(std::ostream & out, const lldbmi::Result & result)
+{
+    return out << result.variabe << "=" << result.value ;
+}
+
+std::ostream & operator<<(std::ostream & out, const lldbmi::ResultClass & resultClass)
+{
+    switch (resultClass.value)
+    {
+    case lldbmi::ResultClass::DONE:
+        return out << "done";
+    case lldbmi::ResultClass::CONNECTED:
+        return out << "connected";
+    case lldbmi::ResultClass::ERROR:
+        return out << "error";
+    case lldbmi::ResultClass::EXIT:
+        return out << "exit";
+    }
+    return out;
+}
 
 std::ostream & operator<<(std::ostream & out, const lldbmi::Option & option)
 {
@@ -49,16 +120,5 @@ std::ostream & operator<<(std::ostream & out, const lldbmi::Option & option)
 
 std::ostream & operator<<(std::ostream & out, const lldbmi::Command & command)
 {
-    if (!command.token.empty())
-        out << command.token;
-    out << command.operation;
-    for (const lldbmi::Option & option : command.options)
-        out << " " << option;
-    if (!command.parameters.empty())
-    {
-        out << "--";
-        for (const std::string & parameter : command.parameters)
-            out << " " << parameter;
-    }
     return out;
 }
