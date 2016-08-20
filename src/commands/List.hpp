@@ -15,29 +15,38 @@
 // limitations under the License.
 //
 //******************************************************************************
-#ifndef LLDBMI_LIST_FEATURES_HPP
-#define LLDBMI_LIST_FEATURES_HPP
+#ifndef LLDBMI_COMMAND_LIST_HPP
+#define LLDBMI_COMMAND_LIST_HPP
 
 #include "../Command.hpp"
 #include <lldbmi/Interpreter.hpp>
 
 namespace lldbmi {
 
-struct ListFeatures : public Command
+/**
+ * @brief Implements
+ * -list-features
+ */
+struct List : public Command
 {
-    ListFeatures(const Command & command) :
-        Command(command) {}
-
-    virtual void execute()
+    List(const Command & command) :
+        Command(command)
     {
-        ResultList featureList;
-        Result result;
-        result.value = featureList.toString();
-        results.push_back(result);
-        writeOutput();
+    }
+
+    virtual Command & execute()
+    {
+        if (operation.compare(5, 9, "-features") == 0)
+        {
+            ResultList featureList;
+            Result result;
+            result.value = featureList.toString();
+            results.push_back(result);
+        }
+        return *this;
     }
 };
 
 } // namespace lldbmi
 
-#endif // LLDBMI_LIST_FEATURES_HPP
+#endif // LLDBMI_COMMAND_LIST_HPP

@@ -24,4 +24,21 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>lldb.API.include</name>
+			<type>2</type>
+			<location>/home/norbert/workspace/llvm/tools/lldb/include</location>
+		</link>
+		<link>
+			<name>lldb.API.src</name>
+			<type>2</type>
+			<location>/home/norbert/workspace/llvm/tools/lldb/source/API</location>
+		</link>
+		<link>
+			<name>lldb.lldb-mi</name>
+			<type>2</type>
+			<location>/home/norbert/workspace/llvm/tools/lldb/tools/lldb-mi</location>
+		</link>
+	</linkedResources>
 </projectDescription>

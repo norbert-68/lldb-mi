@@ -20,8 +20,10 @@
 #include <lldbmi/Interpreter.hpp>
 #include <cctype>
 #include <sstream>
-#include "commands/ListFeatures.hpp"
-#include "commands/GdbVersion.hpp"
+
+#include "commands/Environment.hpp"
+#include "commands/Gdb.hpp"
+#include "commands/List.hpp"
 
 namespace lldbmi {
 
@@ -43,40 +45,249 @@ std::string ResultVector::toString() const
     return strstr.str();
 }
 
-void Command::execute()
+std::string CString::toString() const
 {
-    if (interpreter.hasLog())
-        interpreter.getLog() << __FUNCTION__ << " " << operation << std::endl;
-    if (operation.compare("-list-features") == 0)
+    std::ostringstream strstr;
+    strstr << '"';
+    for (char c : *this)
     {
-        ListFeatures command(*this);
-        command.execute();
+        if (c == '"')
+            strstr << '\\';
+        strstr << c;
     }
-    else if (operation.compare("-gdb-version") == 0)
+    strstr << '"';
+    return strstr.str();
+}
+
+Command & Command::execute()
+{
+    if (operation.compare(0, 5, "-list") == 0)
     {
-        GdbVersion command(*this);
-        command.execute();
+        List command(*this);
+        *this = command.execute();
     }
+    else if (operation.compare(0, 4, "-gdb") == 0)
+    {
+        Gdb command(*this);
+        *this = command.execute();
+    }
+    else if (operation.compare(0, 12, "-environment") == 0)
+    {
+        Environment command(*this);
+        *this = command.execute();
+    }
+    return *this;
+}
+
+Command & Command::operator=(const Command & right)
+{
+    this->resultClass = right.resultClass;
+    this->results = right.results;
+    return *this;
 }
 
 void Command::parse(const std::string & commandLine)
 {
     std::size_t i = 0;
+    bool expectOptions = true;
+    bool expectDblDash = true;
     if (i < commandLine.length() && isdigit(commandLine.at(i)))
-    {
         while (i < commandLine.length() && isdigit(commandLine.at(i)))
             token.append(1, commandLine.at(i++));
-    }
     if (i < commandLine.length() && commandLine.at(i) == '-')
-    {
         while (i < commandLine.length() &&  commandLine.at(i) != ' ')
             operation.append(1, commandLine.at(i++));
-        if (interpreter.hasLog())
-            interpreter.getLog() << __FUNCTION__ << " operation=" << operation << std::endl;
+
+    Option currentOption;
+    std::string currentParameter;
+    enum {
+        START,
+        START_OPTION_NAME,
+        START_OPTION_PARAMETER,
+        START_PARAMETER,
+        OPTION_NAME,
+        OPTION_PARAMETER,
+        OPTION_NAME_CSTRING,
+        OPTION_PARAMETER_CSTRING,
+        PARAMETER,
+        CSTRING,
+        END
+    } state;
+    for (state = i == commandLine.length() ? END : START; state != END; ++i)
+    {
+        if (i == commandLine.length())
+        {
+            switch (state)
+            {
+            case OPTION_NAME:
+            case OPTION_NAME_CSTRING:
+            case OPTION_PARAMETER:
+            case OPTION_PARAMETER_CSTRING:
+            case START_OPTION_PARAMETER:
+                options.push_back(currentOption);
+                break;
+            case PARAMETER:
+            case CSTRING:
+                parameters.push_back(currentParameter);
+                break;
+
+            }
+            state = END;
+        }
+        switch (state)
+        {
+        case START:
+            switch (commandLine.at(i))
+            {
+            case ' ':
+                break;
+            case '-':
+                state = START_OPTION_NAME;
+                break;
+            case '"':
+                currentParameter.clear();
+                currentParameter.push_back(commandLine.at(i));
+                state = CSTRING;
+                break;
+            default:
+                currentParameter.clear();
+                currentParameter.push_back(commandLine.at(i));
+                state = PARAMETER;
+            }
+            break;
+        case START_OPTION_NAME:
+            currentOption.clear();
+            switch (commandLine.at(i))
+            {
+            case ' ': // "- "
+                state = START;
+                break;
+            case '-': // "--"
+                state = START_PARAMETER;
+                break;
+            case '"': // "-""
+                currentOption.name.push_back(commandLine.at(i));
+                state = OPTION_NAME_CSTRING;
+                break;
+            default:  // "-c"
+                currentOption.name.push_back(commandLine.at(i));
+                state = OPTION_NAME;
+            }
+            break;
+        case START_OPTION_PARAMETER:
+            switch (commandLine.at(i))
+            {
+            case ' ':
+                break;
+            case '-':
+                options.push_back(currentOption);
+                state = START_OPTION_NAME;
+                break;
+            case '"':
+                currentOption.parameter.push_back(commandLine.at(i));
+                state = OPTION_PARAMETER_CSTRING;
+                break;
+            default:
+                currentOption.parameter.push_back(commandLine.at(i));
+                state = OPTION_PARAMETER;
+            }
+            break;
+        case START_PARAMETER:
+            currentParameter.clear();
+            switch (commandLine.at(i))
+            {
+            case ' ':
+                break;
+            case '"':
+                currentParameter.push_back(commandLine.at(i));
+                state = CSTRING;
+                break;
+            default:
+                currentParameter.push_back(commandLine.at(i));
+                state = PARAMETER;
+            }
+            break;
+        case PARAMETER:
+            switch (commandLine.at(i))
+            {
+            case ' ':
+                parameters.push_back(currentParameter);
+                state = START_PARAMETER;
+                break;
+            default:
+                currentParameter.push_back(commandLine.at(i));
+            }
+            break;
+        case CSTRING:
+            switch (commandLine.at(i))
+            {
+            case '"':
+                currentParameter.push_back(commandLine.at(i));
+                parameters.push_back(currentParameter);
+                state = START_PARAMETER;
+                break;
+            default:
+                currentParameter.push_back(commandLine.at(i));
+            }
+            break;
+        case OPTION_NAME:
+            switch (commandLine.at(i))
+            {
+            case ' ':
+                state = START_OPTION_PARAMETER;
+                break;
+            default:
+                currentOption.name.push_back(commandLine.at(i));
+            }
+            break;
+        case OPTION_NAME_CSTRING:
+            switch (commandLine.at(i))
+            {
+            case '"':
+                currentOption.name.push_back(commandLine.at(i));
+                state = START_OPTION_PARAMETER;
+                break;
+            default:
+                currentOption.name.push_back(commandLine.at(i));
+            }
+            break;
+        case OPTION_PARAMETER:
+            switch (commandLine.at(i))
+            {
+            case ' ':
+                options.push_back(currentOption);
+                state = START;
+                break;
+            default:
+                currentOption.parameter.push_back(commandLine.at(i));
+            }
+            break;
+        case OPTION_PARAMETER_CSTRING:
+            switch (commandLine.at(i))
+            {
+            case '"':
+                currentOption.parameter.push_back(commandLine.at(i));
+                options.push_back(currentOption);
+                state = START;
+                break;
+            default:
+                currentOption.parameter.push_back(commandLine.at(i));
+            }
+            break;
+        }
     }
 }
 
-void Command::writeOutput()
+void Command::setError(const std::string & msg)
+{
+    resultClass = ERROR;
+    Result error("msg");
+    CString cstring(msg);
+    error.value = cstring.toString();
+    results.push_back(error);
+}
+
+std::string Command::getOutput() const
 {
     std::ostringstream strstr;
     if (!token.empty())
@@ -84,7 +295,7 @@ void Command::writeOutput()
     strstr << "^" << resultClass;
     for (const Result & result : results)
         strstr << "," << result;
-    interpreter.writeOutput(strstr.str());
+    return strstr.str();
 }
 
 } // namespace lldbmi
@@ -94,17 +305,17 @@ std::ostream & operator<<(std::ostream & out, const lldbmi::Result & result)
     return out << result.variabe << "=" << result.value ;
 }
 
-std::ostream & operator<<(std::ostream & out, const lldbmi::ResultClass & resultClass)
+std::ostream & operator<<(std::ostream & out, const lldbmi::Command::ResultClass & resultClass)
 {
-    switch (resultClass.value)
+    switch (resultClass)
     {
-    case lldbmi::ResultClass::DONE:
+    case lldbmi::Command::ResultClass::DONE:
         return out << "done";
-    case lldbmi::ResultClass::CONNECTED:
+    case lldbmi::Command::ResultClass::CONNECTED:
         return out << "connected";
-    case lldbmi::ResultClass::ERROR:
+    case lldbmi::Command::ResultClass::ERROR:
         return out << "error";
-    case lldbmi::ResultClass::EXIT:
+    case lldbmi::Command::ResultClass::EXIT:
         return out << "exit";
     }
     return out;
@@ -112,7 +323,7 @@ std::ostream & operator<<(std::ostream & out, const lldbmi::ResultClass & result
 
 std::ostream & operator<<(std::ostream & out, const lldbmi::Option & option)
 {
-    out << option.name;
+    out << "-" << option.name;
     if (!option.parameter.empty())
         out << " " << option.parameter;
     return out;
@@ -120,5 +331,16 @@ std::ostream & operator<<(std::ostream & out, const lldbmi::Option & option)
 
 std::ostream & operator<<(std::ostream & out, const lldbmi::Command & command)
 {
+    if (!command.token.empty())
+        out << command.token;
+    out << command.operation;
+    for (const lldbmi::Option & option : command.options)
+        out << " " << option;
+    if (!command.parameters.empty())
+    {
+        out << " --";
+        for (const std::string & parameter : command.parameters)
+            out << " " << parameter;
+    }
     return out;
 }

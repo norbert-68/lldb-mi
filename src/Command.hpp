@@ -26,6 +26,17 @@ namespace lldbmi {
 // Forward Declaration
 class Interpreter;
 
+struct CString : public std::string
+{
+    CString(const std::string & str) :
+        std::string(str) {}
+
+    CString(const char * str) :
+        std::string(str) {}
+
+    std::string toString() const;
+};
+
 struct Result
 {
     Result(const char * variabe = "result") :
@@ -59,50 +70,70 @@ struct ResultTuple : public ResultVector
     ResultTuple() : ResultVector('{', '}') {}
 };
 
-struct ResultClass
-{
-    ResultClass() :
-        value(DONE) {}
-
-    enum { DONE, CONNECTED, ERROR, EXIT } value;
-};
-
 struct Option
 {
     std::string name;
     std::string parameter;
+
+    void clear()
+    {
+        name.clear();
+        parameter.clear();
+    }
+
+    bool empty() const
+    {
+        return name.empty() && parameter.empty();
+    }
 };
 
 class Command
 {
 public:
 
+    typedef enum { DONE, CONNECTED, ERROR, EXIT } ResultClass;
+
+    std::string token;
+    std::string operation;
+    std::vector<Option> options;
+    std::vector<std::string> parameters;
+
     Command(Interpreter & interpreter) :
-        interpreter(interpreter) {}
+        interpreter(interpreter),
+        resultClass(DONE) {}
 
     virtual ~Command() {}
 
-    virtual void execute();
+    /**
+     * @brief Returns @c true in case execution should go on. @c false otherwise.
+     */
+    virtual Command & execute();
+
+    std::string getOutput() const;
+
+    const ResultClass & getResultClass() const
+    {
+        return resultClass;
+    }
+
+    Command & operator=(const Command & right);
 
     void parse(const std::string & commandLine);
 
+    void setError(const std::string & msg);
+
 protected:
 
-    void writeOutput();
-
     Interpreter & interpreter;
-    std::string token;
-    std::string operation;
     ResultClass resultClass;
-    std::vector<Option> options;
-    std::vector<std::string> parameters;
     std::vector<Result> results;
+
 };
 
 } // namespce lldbmi
 
 std::ostream & operator<<(std::ostream & out, const lldbmi::Result & result);
-std::ostream & operator<<(std::ostream & out, const lldbmi::ResultClass & resultClass);
+std::ostream & operator<<(std::ostream & out, const lldbmi::Command::ResultClass & resultClass);
 std::ostream & operator<<(std::ostream & out, const lldbmi::Option & option);
 std::ostream & operator<<(std::ostream & out, const lldbmi::Command & command);
 

@@ -22,7 +22,8 @@
 #include <iostream>
 #include <sstream>
 #include <cstring>
-#include "commands/GdbVersion.hpp"
+
+#include "commands/Gdb.hpp"
 
 namespace lldbmi {
 
@@ -86,16 +87,30 @@ int Interpreter::parseOptions(const char * option, int argc, char * args[], std:
 
 void Interpreter::readEvalLoop()
 {
-    writeOutput();
     while (true)
     {
+        getOut() << "(gdb)" << endl;
         std::string commandLine;
         std::getline(getIn(), commandLine);
         if (hasLog())
             getLog() << __FUNCTION__ << " getline: " << commandLine << std::endl;
+
         Command command(*this);
         command.parse(commandLine);
+
+        if (hasLog())
+            getLog() << command << std::endl;
         command.execute();
+
+        std::ostringstream strstr;
+        writeOutput(strstr, command.getOutput());
+        std::string output = strstr.str();
+        if (hasLog())
+            getLog() << output;
+        getOut() << output;
+
+        if (command.getResultClass() == Command::ResultClass::EXIT)
+            break;
     }
 }
 
@@ -130,8 +145,8 @@ void Interpreter::start(int argc, char * args[], std::istream & in, std::ostream
 
     if (parseOptions("--version", modifiedArgc, args) != modifiedArgc)
     {
-        GdbVersion gdbVersion(*this);
-        for (const std::string & version : gdbVersion.getVersion())
+        Gdb gdb(*this);
+        for (const std::string & version : gdb.getVersion())
             getOut() << version << std::endl;
         return;
     }
@@ -140,40 +155,27 @@ void Interpreter::start(int argc, char * args[], std::istream & in, std::ostream
     if (hasLog())
         getLog() << __FUNCTION__ << " selected interpreter: " << interpreter << std::endl;
 
+    bool sourcInitFiles = true;
     int nxArgc = parseOptions("--nx", modifiedArgc, args);
     if (nxArgc != modifiedArgc)
     {
         modifiedArgc = nxArgc;
         if (hasLog())
             getLog() << __FUNCTION__ << " do not read any initialization files" << std::endl;
+        sourcInitFiles = false;
     }
 
+    lldb::SBDebugger::Initialize();
+    debugger.reset(new lldb::SBDebugger(lldb::SBDebugger::Create(sourcInitFiles)));
     readEvalLoop();
-}
-
-void Interpreter::writeOutput(const std::string & resultRecord)
-{
-    std::ostringstream strstr;
-    writeOutput(strstr, resultRecord);
-    std::string str = strstr.str();
-    if (hasLog())
-        getLog() << __FUNCTION__ << " " << str;
-    getOut() << str;
-    getOut().flush();
 }
 
 void Interpreter::writeOutput(std::ostream & stream, const std::string & resultRecord)
 {
     for (const std::string & outOfBandRecord : outOfBandRecords)
-    {
         stream << outOfBandRecord << endl;
-    }
     outOfBandRecords.clear();
-    if (!resultRecord.empty())
-    {
-        stream << resultRecord << endl;
-    }
-    stream << "(gdb)" << endl;
+    stream << resultRecord << endl;
 }
 
 } // namespace lldbmi

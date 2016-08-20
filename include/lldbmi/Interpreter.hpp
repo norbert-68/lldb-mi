@@ -31,9 +31,14 @@ class Interpreter
 {
 public:
 
+    bool breakpoint_pending;
+    bool detach_on_fork;
+
     static const char * endl;
 
 	Interpreter() :
+	    breakpoint_pending(true),
+	    detach_on_fork(true),
         in(0),
 	    out(0),
 		modifiedArgc(0)
@@ -55,11 +60,9 @@ public:
 
 	void start(int argc, char * args[], std::istream & in, std::ostream & out);
 
-    void writeOutput(const std::string & resultRecord = std::string());
-
 protected:
 
-	void readEvalLoop();
+    void readEvalLoop();
     void writeOutput(std::ostream & stream, const std::string & resultRecord);
 
 private:
@@ -71,6 +74,7 @@ private:
 	int modifiedArgc;
 	std::string interpreter;
     std::vector<std::string> outOfBandRecords;
+    std::auto_ptr<lldb::SBDebugger> debugger;
 
 };
 
