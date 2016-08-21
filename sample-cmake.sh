@@ -14,8 +14,8 @@ case "$1" in
 esac
 BUILDDIR="build-$CONFIG"
 CMAKE_OPTIONS="${CMAKE_OPTIONS} -DCMAKE_BUILD_TYPE=${CONFIG}"
-mkdir -p "$BUILDDIR"                             && \
-  cd "$BUILDDIR"                                 && \
-  cmake ${CMAKE_OPTIONS} $* ..                   && \
-  cd ..                                          && \
+mkdir -p "$BUILDDIR"           && \
+  cd "$BUILDDIR"               && \
+  cmake ${CMAKE_OPTIONS} $* .. && \
+  cd ..                        && \
   make -C "$BUILDDIR"
