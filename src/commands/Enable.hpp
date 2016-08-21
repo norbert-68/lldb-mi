@@ -15,8 +15,8 @@
 // limitations under the License.
 //
 //******************************************************************************
-#ifndef LLDBMI_COMMAND_LIST_HPP
-#define LLDBMI_COMMAND_LIST_HPP
+#ifndef LLDBMI_COMMAND_ENABLE_HPP
+#define LLDBMI_COMMAND_ENABLE_HPP
 
 #include "../Command.hpp"
 #include <lldbmi/Interpreter.hpp>
@@ -25,28 +25,28 @@ namespace lldbmi {
 
 /**
  * @brief Implements
- * -list-features
+ * -enable-pretty-printing
  */
-struct List : public Command
+struct Enable : public Command
 {
-    List(const Command & command) :
+    Enable(const Command & command) :
         Command(command)
     {
     }
 
     virtual Command & execute()
     {
-        if (operation.compare("-list-features") == 0)
+        if (operation.compare("-enable-pretty-printing") == 0)
         {
-            ResultList featureList;
-            Result result;
-            result.value = featureList.toString();
-            results.push_back(result);
+            interpreter.enable_pretty_printing = flag_on;
+            if (interpreter.hasLog())
+                interpreter.getLog() << __FUNCTION__ << ": enable-pretty-printing " << interpreter.enable_pretty_printing << std::endl;
         }
         return *this;
     }
+
 };
 
 } // namespace lldbmi
 
-#endif // LLDBMI_COMMAND_LIST_HPP
+#endif // LLDBMI_COMMAND_ENABLE_HPP

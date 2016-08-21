@@ -20,6 +20,7 @@
 
 #include <lldb/API/SBDebugger.h>
 #include <memory>
+#include <mutex>
 #include <ostream>
 
 namespace lldbmi {
@@ -27,18 +28,46 @@ namespace lldbmi {
 // forward declarations
 struct Command;
 
-class Interpreter
+typedef enum { python_print_stack_none, python_print_stack_message, python_print_stack_full } PythonPrintStack;
+typedef enum { charset_default, charset_utf8, charset_utf16, charset_utf32 } Charset;
+typedef enum { flag_on, flag_off, flag_auto } Flag;
+
+class Interpreter : public std::recursive_mutex
 {
 public:
 
-    bool breakpoint_pending;
-    bool detach_on_fork;
+    Flag sourc_init_files;
+    Flag breakpoint_pending;
+    Flag detach_on_fork;
+    Flag enable_pretty_printing;
+    PythonPrintStack python_print_stack;
+    Flag print_object;
+    Flag print_sevenbit_strings;
+    Charset host_charset;
+    Charset target_charset;
+    Charset target_wide_charset;
+    Flag target_async;
+    Flag pagination;
+    Flag non_stop;
+    Flag auto_solib_add;
 
     static const char * endl;
 
 	Interpreter() :
-	    breakpoint_pending(true),
-	    detach_on_fork(true),
+	    sourc_init_files(flag_auto),
+	    breakpoint_pending(flag_auto),
+	    detach_on_fork(flag_auto),
+	    enable_pretty_printing(flag_auto),
+	    python_print_stack(python_print_stack_none),
+	    print_object(flag_auto),
+	    print_sevenbit_strings(flag_auto),
+	    host_charset(charset_default),
+	    target_charset(charset_default),
+	    target_wide_charset(charset_default),
+	    target_async(flag_auto),
+	    pagination(flag_auto),
+	    non_stop(flag_auto),
+	    auto_solib_add(flag_auto),
         in(0),
 	    out(0),
 		modifiedArgc(0)
@@ -46,6 +75,8 @@ public:
 	}
 
     void addOutOfBandRecord(const std::string & record);
+
+    lldb::SBDebugger & getDebugger();
 
     std::istream & getIn()  { return *in; }
 	std::ostream & getLog() { return *log; }
@@ -74,10 +105,19 @@ private:
 	int modifiedArgc;
 	std::string interpreter;
     std::vector<std::string> outOfBandRecords;
-    std::auto_ptr<lldb::SBDebugger> debugger;
+    std::unique_ptr<lldb::SBDebugger> debugger;
 
 };
 
 } // lldbmi
+
+std::ostream & operator<<(std::ostream & out, const lldbmi::Flag & var);
+std::string & operator>>(std::string & str, lldbmi::Flag & var);
+
+std::ostream & operator<<(std::ostream & out, const lldbmi::PythonPrintStack & var);
+std::string & operator>>(std::string & str, lldbmi::PythonPrintStack & var);
+
+std::ostream & operator<<(std::ostream & out, const lldbmi::Charset & var);
+std::string & operator>>(std::string & str, lldbmi::Charset & var);
 
 #endif // LLDBMI_INTERPRETER_HPP

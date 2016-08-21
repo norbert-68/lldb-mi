@@ -40,8 +40,7 @@ struct Environment : public Command
 
     virtual Command & execute()
     {
-        int c = operation.compare(12, 3, "-cd");
-        if (operation.compare(12, 3, "-cd") == 0)
+        if (operation.compare("-environment-cd") == 0)
         {
             if (!parameters.empty())
             {
@@ -65,7 +64,7 @@ struct Environment : public Command
             else
             {
                 std::string msg(operation);
-                msg.append(": Usage DIRECTORY");
+                msg.append(": usage DIRECTORY");
                 setError(msg);
             }
         }

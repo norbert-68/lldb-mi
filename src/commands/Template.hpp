@@ -15,8 +15,8 @@
 // limitations under the License.
 //
 //******************************************************************************
-#ifndef LLDBMI_COMMAND_LIST_HPP
-#define LLDBMI_COMMAND_LIST_HPP
+#ifndef LLDBMI_COMMAND_TEMPLATE_HPP
+#define LLDBMI_COMMAND_TEMPLATE_HPP
 
 #include "../Command.hpp"
 #include <lldbmi/Interpreter.hpp>
@@ -25,28 +25,23 @@ namespace lldbmi {
 
 /**
  * @brief Implements
- * -list-features
  */
-struct List : public Command
+struct Template : public Command
 {
-    List(const Command & command) :
+    Template(const Command & command) :
         Command(command)
     {
     }
 
     virtual Command & execute()
     {
-        if (operation.compare("-list-features") == 0)
-        {
-            ResultList featureList;
-            Result result;
-            result.value = featureList.toString();
-            results.push_back(result);
-        }
+        //if (operation.compare("-exec-and-symbols") == 0)
+        //{
+        //}
         return *this;
     }
 };
 
 } // namespace lldbmi
 
-#endif // LLDBMI_COMMAND_LIST_HPP
+#endif // LLDBMI_COMMAND_TEMPLATE_HPP

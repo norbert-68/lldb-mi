@@ -21,7 +21,9 @@
 #include <cctype>
 #include <sstream>
 
+#include "commands/Enable.hpp"
 #include "commands/Environment.hpp"
+#include "commands/File.hpp"
 #include "commands/Gdb.hpp"
 #include "commands/List.hpp"
 
@@ -61,9 +63,19 @@ std::string CString::toString() const
 
 Command & Command::execute()
 {
-    if (operation.compare(0, 5, "-list") == 0)
+    if (operation.compare(0, 7, "-enable") == 0)
     {
-        List command(*this);
+        Enable command(*this);
+        *this = command.execute();
+    }
+    else if (operation.compare(0, 12, "-environment") == 0)
+    {
+        Environment command(*this);
+        *this = command.execute();
+    }
+    else if (operation.compare(0, 5, "-file") == 0)
+    {
+        File command(*this);
         *this = command.execute();
     }
     else if (operation.compare(0, 4, "-gdb") == 0)
@@ -71,9 +83,9 @@ Command & Command::execute()
         Gdb command(*this);
         *this = command.execute();
     }
-    else if (operation.compare(0, 12, "-environment") == 0)
+    else if (operation.compare(0, 5, "-list") == 0)
     {
-        Environment command(*this);
+        List command(*this);
         *this = command.execute();
     }
     return *this;
@@ -103,14 +115,18 @@ void Command::parse(const std::string & commandLine)
     enum {
         START,
         START_OPTION_NAME,
+        START_OPTION_NAME2,
         START_OPTION_PARAMETER,
         START_PARAMETER,
         OPTION_NAME,
         OPTION_PARAMETER,
         OPTION_NAME_CSTRING,
         OPTION_PARAMETER_CSTRING,
+        OPTION_NAME_CSTRING_ESC,
+        OPTION_PARAMETER_CSTRING_ESC,
         PARAMETER,
         CSTRING,
+        CSTRING_ESC,
         END
     } state;
     for (state = i == commandLine.length() ? END : START; state != END; ++i)
@@ -121,13 +137,16 @@ void Command::parse(const std::string & commandLine)
             {
             case OPTION_NAME:
             case OPTION_NAME_CSTRING:
+            case OPTION_NAME_CSTRING_ESC:
             case OPTION_PARAMETER:
             case OPTION_PARAMETER_CSTRING:
+            case OPTION_PARAMETER_CSTRING_ESC:
             case START_OPTION_PARAMETER:
                 options.push_back(currentOption);
                 break;
             case PARAMETER:
             case CSTRING:
+            case CSTRING_ESC:
                 parameters.push_back(currentParameter);
                 break;
 
@@ -142,6 +161,8 @@ void Command::parse(const std::string & commandLine)
             case ' ':
                 break;
             case '-':
+                currentOption.clear();
+                currentOption.name.push_back(commandLine.at(i));
                 state = START_OPTION_NAME;
                 break;
             case '"':
@@ -156,20 +177,31 @@ void Command::parse(const std::string & commandLine)
             }
             break;
         case START_OPTION_NAME:
-            currentOption.clear();
             switch (commandLine.at(i))
             {
             case ' ': // "- "
                 state = START;
                 break;
             case '-': // "--"
-                state = START_PARAMETER;
+                currentOption.name.push_back(commandLine.at(i));
+                state = START_OPTION_NAME2;
                 break;
             case '"': // "-""
                 currentOption.name.push_back(commandLine.at(i));
                 state = OPTION_NAME_CSTRING;
                 break;
             default:  // "-c"
+                currentOption.name.push_back(commandLine.at(i));
+                state = OPTION_NAME;
+            }
+            break;
+        case START_OPTION_NAME2:
+            switch (commandLine.at(i))
+            {
+            case ' ': // "-- "
+                state = START_PARAMETER;
+                break;
+            default:  // "--c"
                 currentOption.name.push_back(commandLine.at(i));
                 state = OPTION_NAME;
             }
@@ -181,6 +213,8 @@ void Command::parse(const std::string & commandLine)
                 break;
             case '-':
                 options.push_back(currentOption);
+                currentOption.clear();
+                currentOption.parameter.push_back(commandLine.at(i));
                 state = START_OPTION_NAME;
                 break;
             case '"':
@@ -221,6 +255,9 @@ void Command::parse(const std::string & commandLine)
         case CSTRING:
             switch (commandLine.at(i))
             {
+            case '\\':
+                state = CSTRING_ESC;
+                break;
             case '"':
                 currentParameter.push_back(commandLine.at(i));
                 parameters.push_back(currentParameter);
@@ -229,6 +266,17 @@ void Command::parse(const std::string & commandLine)
             default:
                 currentParameter.push_back(commandLine.at(i));
             }
+            break;
+        case CSTRING_ESC:
+            switch (commandLine.at(i))
+            {
+            case '"':
+                break;
+            default:
+                currentParameter.push_back('\\');
+            }
+            currentParameter.push_back(commandLine.at(i));
+            state = CSTRING;
             break;
         case OPTION_NAME:
             switch (commandLine.at(i))
@@ -243,6 +291,9 @@ void Command::parse(const std::string & commandLine)
         case OPTION_NAME_CSTRING:
             switch (commandLine.at(i))
             {
+            case '\\':
+                state = OPTION_NAME_CSTRING_ESC;
+                break;
             case '"':
                 currentOption.name.push_back(commandLine.at(i));
                 state = START_OPTION_PARAMETER;
@@ -250,6 +301,17 @@ void Command::parse(const std::string & commandLine)
             default:
                 currentOption.name.push_back(commandLine.at(i));
             }
+            break;
+        case OPTION_NAME_CSTRING_ESC:
+            switch (commandLine.at(i))
+            {
+            case '"':
+                break;
+            default:
+                currentParameter.push_back('\\');
+            }
+            currentParameter.push_back(commandLine.at(i));
+            state = OPTION_NAME_CSTRING;
             break;
         case OPTION_PARAMETER:
             switch (commandLine.at(i))
@@ -265,6 +327,9 @@ void Command::parse(const std::string & commandLine)
         case OPTION_PARAMETER_CSTRING:
             switch (commandLine.at(i))
             {
+            case '\\':
+                state = OPTION_PARAMETER_CSTRING_ESC;
+                break;
             case '"':
                 currentOption.parameter.push_back(commandLine.at(i));
                 options.push_back(currentOption);
@@ -273,6 +338,17 @@ void Command::parse(const std::string & commandLine)
             default:
                 currentOption.parameter.push_back(commandLine.at(i));
             }
+            break;
+        case OPTION_PARAMETER_CSTRING_ESC:
+            switch (commandLine.at(i))
+            {
+            case '"':
+                break;
+            default:
+                currentOption.parameter.push_back('\\');
+            }
+            currentOption.parameter.push_back(commandLine.at(i));
+            state = OPTION_PARAMETER_CSTRING;
             break;
         }
     }
@@ -302,7 +378,7 @@ std::string Command::getOutput() const
 
 std::ostream & operator<<(std::ostream & out, const lldbmi::Result & result)
 {
-    return out << result.variabe << "=" << result.value ;
+    return out << result.variabe << "=" << result.value;
 }
 
 std::ostream & operator<<(std::ostream & out, const lldbmi::Command::ResultClass & resultClass)
@@ -323,7 +399,7 @@ std::ostream & operator<<(std::ostream & out, const lldbmi::Command::ResultClass
 
 std::ostream & operator<<(std::ostream & out, const lldbmi::Option & option)
 {
-    out << "-" << option.name;
+    out << option.name;
     if (!option.parameter.empty())
         out << " " << option.parameter;
     return out;

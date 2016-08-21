@@ -34,6 +34,13 @@ void Interpreter::addOutOfBandRecord(const std::string & record)
     outOfBandRecords.push_back(record);
 }
 
+lldb::SBDebugger & Interpreter::getDebugger()
+{
+    if (!debugger)
+        debugger.reset(new lldb::SBDebugger(lldb::SBDebugger::Create(sourc_init_files != flag_off)));
+    return *debugger;
+}
+
 std::string Interpreter::getTime()
 {
     time_t t = time(0);
@@ -155,18 +162,16 @@ void Interpreter::start(int argc, char * args[], std::istream & in, std::ostream
     if (hasLog())
         getLog() << __FUNCTION__ << " selected interpreter: " << interpreter << std::endl;
 
-    bool sourcInitFiles = true;
     int nxArgc = parseOptions("--nx", modifiedArgc, args);
     if (nxArgc != modifiedArgc)
     {
         modifiedArgc = nxArgc;
         if (hasLog())
             getLog() << __FUNCTION__ << " do not read any initialization files" << std::endl;
-        sourcInitFiles = false;
+        sourc_init_files = flag_off;
     }
 
     lldb::SBDebugger::Initialize();
-    debugger.reset(new lldb::SBDebugger(lldb::SBDebugger::Create(sourcInitFiles)));
     readEvalLoop();
 }
 
@@ -179,3 +184,92 @@ void Interpreter::writeOutput(std::ostream & stream, const std::string & resultR
 }
 
 } // namespace lldbmi
+
+std::ostream & operator<<(std::ostream & out, const lldbmi::Flag & var)
+{
+    switch (var)
+    {
+    case lldbmi::flag_on:   return out << "on";
+    case lldbmi::flag_off:  return out << "off";
+    case lldbmi::flag_auto: return out << "auto";
+    }
+    return out;
+}
+
+std::string & operator>>(std::string & str, lldbmi::Flag & var)
+{
+    if (str.compare("on") == 0)
+    {
+        var = lldbmi::flag_on;
+    }
+    else if (str.compare("off") == 0)
+    {
+        var = lldbmi::flag_off;
+    }
+    else
+    {
+        var = lldbmi::flag_auto;
+    }
+    return str;
+}
+
+std::ostream & operator<<(std::ostream & out, const lldbmi::PythonPrintStack & var)
+{
+    switch (var)
+    {
+    case lldbmi::python_print_stack_none:    return out << "none";
+    case lldbmi::python_print_stack_message: return out << "message";
+    case lldbmi::python_print_stack_full:    return out << "full";
+    }
+    return out;
+}
+
+std::string & operator>>(std::string & str, lldbmi::PythonPrintStack & var)
+{
+    if (str.compare("full") == 0)
+    {
+        var = lldbmi::python_print_stack_full;
+    }
+    else if (str.compare("message") == 0)
+    {
+        var = lldbmi::python_print_stack_message;
+    }
+    else
+    {
+        var = lldbmi::python_print_stack_none;
+    }
+    return str;
+}
+
+std::ostream & operator<<(std::ostream & out, const lldbmi::Charset & var)
+{
+    switch (var)
+    {
+    case lldbmi::charset_default: return out << "default";
+    case lldbmi::charset_utf8:    return out << "UTF-8";
+    case lldbmi::charset_utf16:   return out << "UTF-16";
+    case lldbmi::charset_utf32:   return out << "UTF-32";
+    }
+    return out;
+}
+
+std::string & operator>>(std::string & str, lldbmi::Charset & var)
+{
+    if (str.compare("UTF-8") == 0)
+    {
+        var = lldbmi::charset_utf8;
+    }
+    else if (str.compare("UTF-16") == 0)
+    {
+        var = lldbmi::charset_utf16;
+    }
+    else if (str.compare("UTF-32") == 0)
+    {
+        var = lldbmi::charset_utf32;
+    }
+    else
+    {
+        var = lldbmi::charset_default;
+    }
+    return str;
+}
