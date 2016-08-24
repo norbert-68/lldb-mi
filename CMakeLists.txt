@@ -52,8 +52,10 @@ include_directories(
 )
 
 add_library( lldb-mi-interpreter
-    src/Command.cpp
-    src/Interpreter.cpp
+    src/MITypes.cpp
+    src/MICommand.cpp
+    src/MIInterpreter.cpp
+    src/MITarget.cpp
 )
 
 target_link_libraries( lldb-mi-interpreter ${LLDB_LIBRARY} )

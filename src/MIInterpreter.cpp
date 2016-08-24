@@ -16,34 +16,52 @@
 //
 //******************************************************************************
 
-#include <lldbmi/Interpreter.hpp>
-#include "Command.hpp"
+#include <lldbmi/MIInterpreter.hpp>
+#include <lldbmi/MITarget.hpp>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <cstring>
 
 #include "commands/Gdb.hpp"
+#include "MICommand.hpp"
 
 namespace lldbmi {
 
-const char * Interpreter::endl = "\r\n";
+const char * MIInterpreter::endl = "\r\n";
 
-void Interpreter::addOutOfBandRecord(const std::string & record)
+MIInterpreter::~MIInterpreter()
+{
+}
+
+void MIInterpreter::addOutOfBandRecord(const std::string & record)
 {
     outOfBandRecords.push_back(record);
 }
 
-lldb::SBDebugger & Interpreter::getDebugger()
+void MIInterpreter::addTarget(MITargetPtr && target)
+{
+    targets[target->getThreadGroup()] = std::move(target);
+}
+
+MITarget * MIInterpreter::findTarget(const std::string & threadGroup)
+{
+    MITargets::const_iterator itarget = targets.find(threadGroup);
+    if (itarget == targets.end())
+        return nullptr;
+    return itarget->second.get();
+}
+
+lldb::SBDebugger & MIInterpreter::getDebugger()
 {
     if (!debugger)
         debugger.reset(new lldb::SBDebugger(lldb::SBDebugger::Create(sourc_init_files != flag_off)));
     return *debugger;
 }
 
-std::string Interpreter::getTime()
+std::string MIInterpreter::getTime()
 {
-    time_t t = time(0);
+    time_t t = time(nullptr);
     char timstr[52];
     ctime_r(&t, timstr);
     for (std::size_t i = strlen(timstr); i > 0 && timstr[i-1] == '\n'; --i)
@@ -51,7 +69,7 @@ std::string Interpreter::getTime()
     return std::string(timstr);
 }
 
-int Interpreter::parseOptions(const char * option, int argc, char * args[], std::string * value)
+int MIInterpreter::parseOptions(const char * option, int argc, char * args[], std::string * value)
 {
     int modifiedArgc = argc;
     int optionLength = strlen(option);
@@ -92,7 +110,7 @@ int Interpreter::parseOptions(const char * option, int argc, char * args[], std:
     return modifiedArgc;
 }
 
-void Interpreter::readEvalLoop()
+void MIInterpreter::readEvalLoop()
 {
     while (true)
     {
@@ -102,7 +120,7 @@ void Interpreter::readEvalLoop()
         if (hasLog())
             getLog() << __FUNCTION__ << " getline: " << commandLine << std::endl;
 
-        Command command(*this);
+        MICommand command(*this);
         command.parse(commandLine);
 
         if (hasLog())
@@ -113,15 +131,19 @@ void Interpreter::readEvalLoop()
         writeOutput(strstr, command.getOutput());
         std::string output = strstr.str();
         if (hasLog())
+        {
             getLog() << output;
+            getLog().flush();
+        }
         getOut() << output;
+        getOut().flush();
 
-        if (command.getResultClass() == Command::ResultClass::EXIT)
+        if (command.getResultClass() == ResultClass::exit)
             break;
     }
 }
 
-void Interpreter::start(int argc, char * args[], std::istream & in, std::ostream & out)
+void MIInterpreter::start(int argc, char * args[], std::istream & in, std::ostream & out)
 {
     this->in = &in;
     this->out = &out;
@@ -175,7 +197,7 @@ void Interpreter::start(int argc, char * args[], std::istream & in, std::ostream
     readEvalLoop();
 }
 
-void Interpreter::writeOutput(std::ostream & stream, const std::string & resultRecord)
+void MIInterpreter::writeOutput(std::ostream & stream, const std::string & resultRecord)
 {
     for (const std::string & outOfBandRecord : outOfBandRecords)
         stream << outOfBandRecord << endl;
@@ -185,91 +207,3 @@ void Interpreter::writeOutput(std::ostream & stream, const std::string & resultR
 
 } // namespace lldbmi
 
-std::ostream & operator<<(std::ostream & out, const lldbmi::Flag & var)
-{
-    switch (var)
-    {
-    case lldbmi::flag_on:   return out << "on";
-    case lldbmi::flag_off:  return out << "off";
-    case lldbmi::flag_auto: return out << "auto";
-    }
-    return out;
-}
-
-std::string & operator>>(std::string & str, lldbmi::Flag & var)
-{
-    if (str.compare("on") == 0)
-    {
-        var = lldbmi::flag_on;
-    }
-    else if (str.compare("off") == 0)
-    {
-        var = lldbmi::flag_off;
-    }
-    else
-    {
-        var = lldbmi::flag_auto;
-    }
-    return str;
-}
-
-std::ostream & operator<<(std::ostream & out, const lldbmi::PythonPrintStack & var)
-{
-    switch (var)
-    {
-    case lldbmi::python_print_stack_none:    return out << "none";
-    case lldbmi::python_print_stack_message: return out << "message";
-    case lldbmi::python_print_stack_full:    return out << "full";
-    }
-    return out;
-}
-
-std::string & operator>>(std::string & str, lldbmi::PythonPrintStack & var)
-{
-    if (str.compare("full") == 0)
-    {
-        var = lldbmi::python_print_stack_full;
-    }
-    else if (str.compare("message") == 0)
-    {
-        var = lldbmi::python_print_stack_message;
-    }
-    else
-    {
-        var = lldbmi::python_print_stack_none;
-    }
-    return str;
-}
-
-std::ostream & operator<<(std::ostream & out, const lldbmi::Charset & var)
-{
-    switch (var)
-    {
-    case lldbmi::charset_default: return out << "default";
-    case lldbmi::charset_utf8:    return out << "UTF-8";
-    case lldbmi::charset_utf16:   return out << "UTF-16";
-    case lldbmi::charset_utf32:   return out << "UTF-32";
-    }
-    return out;
-}
-
-std::string & operator>>(std::string & str, lldbmi::Charset & var)
-{
-    if (str.compare("UTF-8") == 0)
-    {
-        var = lldbmi::charset_utf8;
-    }
-    else if (str.compare("UTF-16") == 0)
-    {
-        var = lldbmi::charset_utf16;
-    }
-    else if (str.compare("UTF-32") == 0)
-    {
-        var = lldbmi::charset_utf32;
-    }
-    else
-    {
-        var = lldbmi::charset_default;
-    }
-    return str;
-}

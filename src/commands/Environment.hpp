@@ -18,8 +18,8 @@
 #ifndef LLDBMI_COMMAND_ENVIRONMENT_HPP
 #define LLDBMI_COMMAND_ENVIRONMENT_HPP
 
-#include "../Command.hpp"
-#include <lldbmi/Interpreter.hpp>
+#include "../MICommand.hpp"
+#include <lldbmi/MIInterpreter.hpp>
 #include <cstring>
 #ifdef __unix__
 #include <unistd.h>
@@ -31,14 +31,14 @@ namespace lldbmi {
  * @brief Implements
  * -environment-cd
  */
-struct Environment : public Command
+struct Environment : public MICommand
 {
-    Environment(const Command & command) :
-        Command(command)
+    Environment(const MICommand & command) :
+        MICommand(command)
     {
     }
 
-    virtual Command & execute()
+    virtual MICommand & execute()
     {
         if (operation.compare("-environment-cd") == 0)
         {

@@ -15,32 +15,58 @@
 // limitations under the License.
 //
 //******************************************************************************
-#ifndef LLDBMI_COMMAND_HPP
-#define LLDBMI_COMMAND_HPP
+#ifndef LLDBMI_MICOMMAND_HPP
+#define LLDBMI_MICOMMAND_HPP
 
+#include <lldbmi/MITypes.hpp>
 #include <string>
 #include <vector>
 
 namespace lldbmi {
 
 // Forward Declaration
-class Interpreter;
+class MIInterpreter;
 
-struct CString : public std::string
+class CString
 {
+public:
+
     CString(const std::string & str) :
-        std::string(str) {}
+        value(str) {}
 
     CString(const char * str) :
-        std::string(str) {}
+        value(str) {}
+
+    CString(unsigned long val);
+
+    operator std::string () const
+    {
+        return toString();
+    }
 
     std::string toString() const;
+
+private:
+
+    std::string value;
+
 };
 
 struct Result
 {
     Result(const char * variabe = "result") :
         variabe(variabe) {}
+
+    Result(const char * variabe, const std::string & value) :
+        variabe(variabe),
+        value(value) {}
+
+    operator std::string() const
+    {
+        return toString();
+    }
+
+    std::string toString() const;
 
     std::string variabe;
     std::string value;
@@ -51,6 +77,11 @@ struct ResultVector : public std::vector<std::string>
 public:
 
     ResultVector(char open, char close) : open(open), close(close) {}
+
+    operator std::string() const
+    {
+        return toString();
+    }
 
     std::string toString() const;
 
@@ -87,27 +118,25 @@ struct Option
     }
 };
 
-class Command
+class MICommand
 {
 public:
-
-    typedef enum { DONE, CONNECTED, ERROR, EXIT } ResultClass;
 
     std::string token;
     std::string operation;
     std::vector<Option> options;
     std::vector<std::string> parameters;
 
-    Command(Interpreter & interpreter) :
+    MICommand(MIInterpreter & interpreter) :
         interpreter(interpreter),
-        resultClass(DONE) {}
+        resultClass(ResultClass::done) {}
 
-    virtual ~Command() {}
+    virtual ~MICommand() {}
 
     /**
      * @brief Returns @c true in case execution should go on. @c false otherwise.
      */
-    virtual Command & execute();
+    virtual MICommand & execute();
 
     std::string getOutput() const;
 
@@ -116,7 +145,7 @@ public:
         return resultClass;
     }
 
-    Command & operator=(const Command & right);
+    MICommand & operator=(const MICommand & right);
 
     void parse(const std::string & commandLine);
 
@@ -124,7 +153,7 @@ public:
 
 protected:
 
-    Interpreter & interpreter;
+    MIInterpreter & interpreter;
     ResultClass resultClass;
     std::vector<Result> results;
 
@@ -133,8 +162,7 @@ protected:
 } // namespce lldbmi
 
 std::ostream & operator<<(std::ostream & out, const lldbmi::Result & result);
-std::ostream & operator<<(std::ostream & out, const lldbmi::Command::ResultClass & resultClass);
 std::ostream & operator<<(std::ostream & out, const lldbmi::Option & option);
-std::ostream & operator<<(std::ostream & out, const lldbmi::Command & command);
+std::ostream & operator<<(std::ostream & out, const lldbmi::MICommand & command);
 
-#endif // LLDBMI_COMMAND_HPP
+#endif // LLDBMI_MICOMMAND_HPP

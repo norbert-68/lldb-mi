@@ -16,7 +16,7 @@
 //
 //******************************************************************************
 
-#include <lldbmi/Interpreter.hpp>
+#include <lldbmi/MIInterpreter.hpp>
 #include <iostream>
 #include <cstdlib>
 
@@ -24,8 +24,8 @@ int main(int argc, char * args[])
 {
 	try
 	{
-		lldbmi::Interpreter miInterpreter;
-		miInterpreter.start(argc, args, std::cin, std::cout);
+		lldbmi::MIInterpreter interpreter;
+		interpreter.start(argc, args, std::cin, std::cout);
 	}
 	catch (const std::exception & exception)
 	{

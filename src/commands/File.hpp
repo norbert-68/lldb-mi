@@ -18,8 +18,8 @@
 #ifndef LLDBMI_COMMAND_FILE_HPP
 #define LLDBMI_COMMAND_FILE_HPP
 
-#include "../Command.hpp"
-#include <lldbmi/Interpreter.hpp>
+#include "../MICommand.hpp"
+#include <lldbmi/MIInterpreter.hpp>
 #include <lldb/API/SBTarget.h>
 #include <mutex>
 
@@ -29,17 +29,26 @@ namespace lldbmi {
  * @brief Implements
  * -file-exec-and-symbols
  */
-struct File : public Command
+struct File : public MICommand
 {
-    File(const Command & command) :
-        Command(command)
+    File(const MICommand & command) :
+        MICommand(command)
     {
     }
 
-    virtual Command & execute()
+    virtual MICommand & execute()
     {
         if (operation.compare("-file-exec-and-symbols") == 0)
         {
+            std::string threadGroup;
+            lldb::SBTarget target;
+
+            for (const Option & option : options)
+            {
+                if (option.name.compare("--thread-group") == 0)
+                    threadGroup = option.parameter;
+            }
+
             if (parameters.size() > 0)
             {
                 if (interpreter.hasLog())
@@ -48,13 +57,22 @@ struct File : public Command
                 std::unique_lock<std::recursive_mutex> lock(interpreter);
 
                 lldb::SBDebugger & debugger = interpreter.getDebugger();
-                lldb::SBError sberror;
-                lldb::SBTarget target = debugger.CreateTarget(parameters.at(0).c_str(), 0, 0, interpreter.auto_solib_add, sberror);
-                if (!sberror.Success())
-                    setError(sberror.GetCString());
-                else if (interpreter.hasLog())
-                    interpreter.getLog() << __FUNCTION__ << ": target " << target.GetTriple() << std::endl;
+                lldb::SBError error;
+                target = debugger.CreateTarget(parameters.at(0).c_str(), nullptr, nullptr, interpreter.auto_solib_add, error);
+
+                if (!error.Success())
+                {
+                    setError(error.GetCString());
+                }
+                else if (target.IsValid())
+                {
+                    MITarget * ptarget = new MITarget(debugger, target, threadGroup);
+                    interpreter.addTarget(MITargetPtr(ptarget));
+                    if (interpreter.hasLog())
+                        interpreter.getLog() << __FUNCTION__ << ": target " << ptarget->getThreadGroup() << std::endl;
+                }
             }
+
         }
         return *this;
     }

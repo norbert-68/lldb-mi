@@ -16,8 +16,7 @@
 //
 //******************************************************************************
 
-#include "Command.hpp"
-#include <lldbmi/Interpreter.hpp>
+#include <lldbmi/MIInterpreter.hpp>
 #include <cctype>
 #include <sstream>
 
@@ -26,6 +25,7 @@
 #include "commands/File.hpp"
 #include "commands/Gdb.hpp"
 #include "commands/List.hpp"
+#include "MICommand.hpp"
 
 namespace lldbmi {
 
@@ -47,11 +47,18 @@ std::string ResultVector::toString() const
     return strstr.str();
 }
 
+CString::CString(unsigned long val)
+{
+    std::ostringstream strstr;
+    strstr << val;
+    value = strstr.str();
+}
+
 std::string CString::toString() const
 {
     std::ostringstream strstr;
     strstr << '"';
-    for (char c : *this)
+    for (char c : value)
     {
         if (c == '"')
             strstr << '\\';
@@ -61,7 +68,16 @@ std::string CString::toString() const
     return strstr.str();
 }
 
-Command & Command::execute()
+std::string Result::toString() const
+{
+    std::ostringstream strstr;
+    strstr << variabe;
+    if (!value.empty())
+        strstr << "=" << value;
+    return strstr.str();
+}
+
+MICommand & MICommand::execute()
 {
     if (operation.compare(0, 7, "-enable") == 0)
     {
@@ -91,14 +107,14 @@ Command & Command::execute()
     return *this;
 }
 
-Command & Command::operator=(const Command & right)
+MICommand & MICommand::operator=(const MICommand & right)
 {
     this->resultClass = right.resultClass;
     this->results = right.results;
     return *this;
 }
 
-void Command::parse(const std::string & commandLine)
+void MICommand::parse(const std::string & commandLine)
 {
     std::size_t i = 0;
     bool expectOptions = true;
@@ -354,16 +370,16 @@ void Command::parse(const std::string & commandLine)
     }
 }
 
-void Command::setError(const std::string & msg)
+void MICommand::setError(const std::string & msg)
 {
-    resultClass = ERROR;
+    resultClass = ResultClass::error;
     Result error("msg");
     CString cstring(msg);
     error.value = cstring.toString();
     results.push_back(error);
 }
 
-std::string Command::getOutput() const
+std::string MICommand::getOutput() const
 {
     std::ostringstream strstr;
     if (!token.empty())
@@ -381,22 +397,6 @@ std::ostream & operator<<(std::ostream & out, const lldbmi::Result & result)
     return out << result.variabe << "=" << result.value;
 }
 
-std::ostream & operator<<(std::ostream & out, const lldbmi::Command::ResultClass & resultClass)
-{
-    switch (resultClass)
-    {
-    case lldbmi::Command::ResultClass::DONE:
-        return out << "done";
-    case lldbmi::Command::ResultClass::CONNECTED:
-        return out << "connected";
-    case lldbmi::Command::ResultClass::ERROR:
-        return out << "error";
-    case lldbmi::Command::ResultClass::EXIT:
-        return out << "exit";
-    }
-    return out;
-}
-
 std::ostream & operator<<(std::ostream & out, const lldbmi::Option & option)
 {
     out << option.name;
@@ -405,7 +405,7 @@ std::ostream & operator<<(std::ostream & out, const lldbmi::Option & option)
     return out;
 }
 
-std::ostream & operator<<(std::ostream & out, const lldbmi::Command & command)
+std::ostream & operator<<(std::ostream & out, const lldbmi::MICommand & command)
 {
     if (!command.token.empty())
         out << command.token;

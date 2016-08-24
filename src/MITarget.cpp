@@ -15,33 +15,30 @@
 // limitations under the License.
 //
 //******************************************************************************
-#ifndef LLDBMI_COMMAND_TEMPLATE_HPP
-#define LLDBMI_COMMAND_TEMPLATE_HPP
 
-#include "../MICommand.hpp"
-#include <lldbmi/MIInterpreter.hpp>
+#include <lldb/API/SBDebugger.h>
+#include <lldb/API/SBFileSpec.h>
+#include <lldbmi/MITarget.hpp>
 
 namespace lldbmi {
 
-/**
- * @brief Implements
- */
-struct Template : public MICommand
+MITarget::MITarget(lldb::SBDebugger & debugger, const lldb::SBTarget & target, const std::string & threadGroup) :
+    language(language_auto),
+    debugger(debugger),
+    target(target),
+    threadGroup(threadGroup)
 {
-    Template(const MICommand & command) :
-        MICommand(command)
+    uint32_t executableLength = this->target.GetExecutable().GetPath(&executable.front(), 0);
+    if (executableLength)
     {
+        executable.resize(executableLength);
+        this->target.GetExecutable().GetPath(&executable.front(), executableLength+1);
     }
+}
 
-    virtual MICommand & execute()
-    {
-        //if (operation.compare("-exec-and-symbols") == 0)
-        //{
-        //}
-        return *this;
-    }
-};
+MITarget::~MITarget()
+{
+    debugger.DeleteTarget(target);
+}
 
 } // namespace lldbmi
-
-#endif // LLDBMI_COMMAND_TEMPLATE_HPP

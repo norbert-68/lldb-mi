@@ -18,8 +18,8 @@
 #ifndef LLDBMI_COMMAND_GDB_HPP
 #define LLDBMI_COMMAND_GDB_HPP
 
-#include "../Command.hpp"
-#include <lldbmi/Interpreter.hpp>
+#include "../MICommand.hpp"
+#include <lldbmi/MIInterpreter.hpp>
 
 namespace lldbmi {
 
@@ -29,26 +29,45 @@ namespace lldbmi {
  * -gdb-version
  * -gdb-set
  */
-struct Gdb : public Command
+struct Gdb : public MICommand
 {
-    Gdb(Interpreter & interpreter) :
-        Command(interpreter)
+    Gdb(MIInterpreter & interpreter) :
+        MICommand(interpreter)
     {
         init();
     }
 
-    Gdb(const Command & command) :
-        Command(command)
+    Gdb(const MICommand & command) :
+        MICommand(command)
     {
         init();
     }
 
-    virtual Command & execute()
+    virtual MICommand & execute()
     {
         if (operation.compare("-gdb-exit") == 0)
         {
-            resultClass = ResultClass::EXIT;
+            resultClass = ResultClass::exit;
         } // -gdb-exit
+        else if (operation.compare("-gdb-show") == 0)
+        {
+            std::string threadGroup;
+            for (const Option & option : options)
+                if (option.name.compare("--thread-group") == 0)
+                    threadGroup = option.parameter;
+            MITarget * ptarget = nullptr;
+            if (!threadGroup.empty())
+                ptarget = interpreter.findTarget(threadGroup);
+            if (parameters.size() > 0)
+            {
+                if (parameters.at(0).compare("language") == 0)
+                {
+                    Language language = ptarget == nullptr ? interpreter.language : ptarget->language;
+                    Result result("value", CString(toString<Language>(language)));
+                    results.push_back(result);
+                }
+            }
+        } // -gdb-show
         else if (operation.compare("-gdb-version") == 0)
         {
             for (const std::string & version : getVersion())
@@ -188,6 +207,21 @@ struct Gdb : public Command
                             interpreter.getLog() << __FUNCTION__ << ": auto-solib-add " << interpreter.auto_solib_add << std::endl;
                     }
                 } // auto-solib-add
+                else if (parameters.at(0).compare("language") == 0)
+                {
+                    if (parameters.size() > 1)
+                    {
+                        std::string threadGroup;
+                        for (const Option & option : options)
+                            if (option.name.compare("--thread-group") == 0)
+                                threadGroup = option.parameter;
+                        MITarget * ptarget = nullptr;
+                        if (!threadGroup.empty())
+                            ptarget = interpreter.findTarget(threadGroup);
+                        Language & language = ptarget == nullptr ? interpreter.language : ptarget->language;
+                        parameters.at(1) >> language;
+                    }
+                } // language
             }
         } // -gdb-set
         return *this;

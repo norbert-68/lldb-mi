@@ -18,8 +18,8 @@
 #ifndef LLDBMI_COMMAND_ENABLE_HPP
 #define LLDBMI_COMMAND_ENABLE_HPP
 
-#include "../Command.hpp"
-#include <lldbmi/Interpreter.hpp>
+#include "../MICommand.hpp"
+#include <lldbmi/MIInterpreter.hpp>
 
 namespace lldbmi {
 
@@ -27,14 +27,14 @@ namespace lldbmi {
  * @brief Implements
  * -enable-pretty-printing
  */
-struct Enable : public Command
+struct Enable : public MICommand
 {
-    Enable(const Command & command) :
-        Command(command)
+    Enable(const MICommand & command) :
+        MICommand(command)
     {
     }
 
-    virtual Command & execute()
+    virtual MICommand & execute()
     {
         if (operation.compare("-enable-pretty-printing") == 0)
         {

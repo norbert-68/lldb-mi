@@ -15,33 +15,55 @@
 // limitations under the License.
 //
 //******************************************************************************
-#ifndef LLDBMI_COMMAND_TEMPLATE_HPP
-#define LLDBMI_COMMAND_TEMPLATE_HPP
+#ifndef LLDBMI_MITARGET_HPP
+#define LLDBMI_MITARGET_HPP
 
-#include "../MICommand.hpp"
-#include <lldbmi/MIInterpreter.hpp>
+#include <lldbmi/MITypes.hpp>
+#include <lldb/API/SBTarget.h>
+#include <string>
 
 namespace lldbmi {
 
-/**
- * @brief Implements
- */
-struct Template : public MICommand
+class MITarget
 {
-    Template(const MICommand & command) :
-        MICommand(command)
+public:
+
+    Language language;
+
+    MITarget(lldb::SBDebugger & debugger, const lldb::SBTarget & target, const std::string & threadGroup);
+
+    MITarget(const MITarget&) = delete;
+
+    virtual ~MITarget();
+
+    const std::string & getExecutable() const
     {
+        return executable;
     }
 
-    virtual MICommand & execute()
+    const std::string & getThreadGroup() const
     {
-        //if (operation.compare("-exec-and-symbols") == 0)
-        //{
-        //}
-        return *this;
+        return threadGroup;
     }
+
+    lldb::SBTarget & getTarget()
+    {
+        return target;
+    }
+
+    MITarget & operator=(const MITarget&) = delete;
+
+private:
+
+    lldb::SBDebugger & debugger;
+    lldb::SBTarget target;
+    std::string threadGroup;
+    std::string executable;
+
 };
+
+typedef std::unique_ptr<MITarget> MITargetPtr;
 
 } // namespace lldbmi
 
-#endif // LLDBMI_COMMAND_TEMPLATE_HPP
+#endif // LLDBMI_MITARGET_HPP

@@ -18,23 +18,26 @@
 #ifndef LLDBMI_COMMAND_LIST_HPP
 #define LLDBMI_COMMAND_LIST_HPP
 
-#include "../Command.hpp"
-#include <lldbmi/Interpreter.hpp>
+#include "../MICommand.hpp"
+#include <lldbmi/MIInterpreter.hpp>
+#include <lldb/API/SBProcess.h>
+#include <set>
 
 namespace lldbmi {
 
 /**
  * @brief Implements
  * -list-features
+ * -list-thread-groups [ --available ] [ --recurse 1 ] [ group ... ]
  */
-struct List : public Command
+struct List : public MICommand
 {
-    List(const Command & command) :
-        Command(command)
+    List(const MICommand & command) :
+        MICommand(command)
     {
     }
 
-    virtual Command & execute()
+    virtual MICommand & execute()
     {
         if (operation.compare("-list-features") == 0)
         {
@@ -42,6 +45,72 @@ struct List : public Command
             Result result;
             result.value = featureList.toString();
             results.push_back(result);
+        }
+        else if (operation.compare("-list-thread-groups") == 0)
+        {
+            long recursionDepth = 0;
+            bool available = false;
+
+            for (const Option & option :options)
+            {
+                if (option.name.compare("--available") == 0)
+                {
+                    available = true;
+                }
+                else if (option.name.compare("--recurse") == 0)
+                {
+                    char * endptr = nullptr;
+                    recursionDepth = strtol(option.parameter.c_str(), &endptr, 10);
+                    recursionDepth = std::max(recursionDepth, 1L);
+                }
+            }
+
+            if (parameters.empty() == 1)
+            {
+                ResultList groups;
+                for (const MIInterpreter::MITargets::value_type & ptarget : interpreter.getTargets())
+                {
+                    ResultTuple group;
+                    group.push_back(Result("id", CString(ptarget.second->getThreadGroup())));
+                    group.push_back(Result("type", CString("process")));
+                    group.push_back(Result("executable", CString(ptarget.second->getExecutable())));
+                    if (ptarget.second->getTarget().GetProcess().IsValid())
+                    {
+                        lldb::SBProcess process = ptarget.second->getTarget().GetProcess();
+                        group.push_back(Result("num_children", CString(process.GetNumThreads())));
+                    }
+                    groups.push_back(group);
+                }
+                results.push_back(Result("groups", groups));
+            }
+            else if (parameters.size() == 1)
+            {
+                ResultList threads;
+                //todo
+                results.push_back(Result("threads", threads));
+            }
+            else
+            {
+                ResultList groups;
+                for (const std::string & parameter : parameters)
+                {
+                    MITarget * ptarget = interpreter.findTarget(parameter);
+                    if (ptarget)
+                    {
+                        ResultTuple group;
+                        group.push_back(Result("id", CString(ptarget->getThreadGroup())));
+                        group.push_back(Result("type", CString("process")));
+                        group.push_back(Result("type", CString(ptarget->getTarget().GetExecutable().GetFilename())));
+                        if (ptarget->getTarget().GetProcess().IsValid())
+                        {
+                            lldb::SBProcess process = ptarget->getTarget().GetProcess();
+                            group.push_back(Result("num_children", CString(process.GetNumThreads())));
+                        }
+                        groups.push_back(group);
+                    }
+                }
+                results.push_back(Result("groups", groups));
+            }
         }
         return *this;
     }
