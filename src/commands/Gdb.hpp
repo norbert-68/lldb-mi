@@ -27,6 +27,7 @@ namespace lldbmi {
  * @brief Implements
  * -gdb-exit
  * -gdb-version
+ * -gdb-show
  * -gdb-set
  */
 struct Gdb : public MICommand
@@ -71,11 +72,7 @@ struct Gdb : public MICommand
         else if (operation.compare("-gdb-version") == 0)
         {
             for (const std::string & version : getVersion())
-            {
-                std::string consoleStreamOutput("~\"");
-                consoleStreamOutput.append(version).append("\\n\"");
-                interpreter.addOutOfBandRecord(consoleStreamOutput);
-            }
+                interpreter.addConsoleStreamOutput(version);
         } // -gdb-version
         else if (operation.compare("-gdb-set") == 0)
         {

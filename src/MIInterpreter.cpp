@@ -34,8 +34,16 @@ MIInterpreter::~MIInterpreter()
 {
 }
 
+void MIInterpreter::addConsoleStreamOutput(const std::string & record)
+{
+    std::string str("~\"");
+    str.append(record).append("\\n\"");
+    addConsoleStreamOutput(record);
+}
+
 void MIInterpreter::addOutOfBandRecord(const std::string & record)
 {
+    std::lock_guard<std::recursive_mutex> lock(*this);
     outOfBandRecords.push_back(record);
 }
 

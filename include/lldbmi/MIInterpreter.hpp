@@ -75,7 +75,10 @@ public:
 
 	virtual ~MIInterpreter();
 
+	void addConsoleStreamOutput(const std::string & record);
+
     void addOutOfBandRecord(const std::string & record);
+
     void addTarget(MITargetPtr && target);
 
     MITarget * findTarget(const std::string & threadGroup);

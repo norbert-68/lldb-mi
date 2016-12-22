@@ -24,6 +24,7 @@
 #include "commands/Environment.hpp"
 #include "commands/File.hpp"
 #include "commands/Gdb.hpp"
+#include "commands/Interpreter.hpp"
 #include "commands/List.hpp"
 #include "MICommand.hpp"
 
@@ -102,6 +103,11 @@ MICommand & MICommand::execute()
     else if (operation.compare(0, 5, "-list") == 0)
     {
         List command(*this);
+        *this = command.execute();
+    }
+    else if (operation.compare(0, 12, "-interpreter") == 0)
+    {
+        Interpreter command(*this);
         *this = command.execute();
     }
     return *this;
